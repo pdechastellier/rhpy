@@ -1,4 +1,5 @@
 import ssl
+import time
 import urllib.request
 import urllib.error
 from datetime import datetime
@@ -313,7 +314,7 @@ class Rhpy:
 
     @staticmethod
     def _clean_name(str):
-        # 'TAMATORO Johng Ay'          -> ('TAMATORO', 'Johng Ay')
+        # 'DOE John'          -> ('DOE', 'John')
         str = re.sub(' \([0-9]+\)', '', str)
         return re.match('(^[A-Z ]+) (.*)$', str).groups()
 

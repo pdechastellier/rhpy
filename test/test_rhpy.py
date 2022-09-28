@@ -17,15 +17,15 @@ class TestRhpy(TestCase):
         self.assertEqual(r, ('John Doe', 'tt', datetime.strptime('26/09/2022', '%d/%m/%Y'), datetime.strptime('27/09/2022', '%d/%m/%Y')) )
 
     def test__clean_name(self):
-        r = Rhpy._clean_name('TAMATORO Johng Ay')
-        self.assertEqual(r, ('TAMATORO', 'Johng Ay'))
+        r = Rhpy._clean_name('TANAKA Paul Antoine')
+        self.assertEqual(r, ('TANAKA', 'Paul Antoine'))
 
-        r = Rhpy._clean_name('DO PACO Camille' )
-        self.assertEqual(r, ('DO PACO', 'Camille'))
+        r = Rhpy._clean_name('DI FUSCO Emile' )
+        self.assertEqual(r, ('DI FUSCO', 'Emile'))
 
-        r = Rhpy._clean_name('LAWSON Anthony (0014545)')
-        self.assertEqual(r, ('LAWSON', 'Anthony'))
+        r = Rhpy._clean_name('HOPKINS Anthony (0014789)')
+        self.assertEqual(r, ('HOPKINS', 'Anthony'))
 
-        r = Rhpy._clean_name('NGUYEN Hong Thai (0014547)')
-        self.assertEqual(r, ('NGUYEN', 'Hong Thai'))
+        r = Rhpy._clean_name('FLANIGAN Kon Tiki (0014547)')
+        self.assertEqual(r, ('FLANIGAN', 'Kon Tiki'))
 
