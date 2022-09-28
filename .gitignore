@@ -1,3 +1,10 @@
+# Project specific
+config.json
+
+# Mac
+.DS_Store
+ws/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
