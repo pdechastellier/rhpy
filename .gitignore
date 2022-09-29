@@ -1,9 +1,12 @@
 # Project specific
 config.json
+ws/
 
 # Mac
 .DS_Store
-ws/
+
+# IDE Pycharm
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
