@@ -218,14 +218,14 @@ class Rhpy:
             type = self._clean_type(row.find_element(By.XPATH, './td[6]').text)
             start = datetime.strptime(row.find_element(By.XPATH, './td[7]').text, '%d/%m/%Y')
             end = datetime.strptime(row.find_element(By.XPATH, './td[9]').text, '%d/%m/%Y')
-            duration = (end - start).days
+            duration = (end - start).days + 1
             print(f'{surname} on {type} for {duration} days starting on {start.strftime("%a %d %b")}')
             row.find_element(By.XPATH, './/input').click()
 
         # validation
         btn = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
             (By.XPATH, '//input[@value="Traiter"]')))
-        btn.click()g
+        btn.click()
         alert = self.driver.switch_to.alert
         alert.accept()
         return len(rows)
