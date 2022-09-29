@@ -1,5 +1,4 @@
 import ssl
-import time
 import urllib.request
 import urllib.error
 from datetime import datetime
@@ -11,13 +10,6 @@ from selenium.common import TimeoutException
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-
-
-# 'cp': conges payes
-# 'jr': jours de repos
-# 'tt': teletravail
-# 'ma': maladie
-# 'ss': conges sans solde
 
 class Rhpy:
     def __init__(self, username, password, headless=True):
@@ -121,7 +113,6 @@ class Rhpy:
         elmt.click()
 
         # ajout d'un conges
-        # elmt = WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((By.CSS_SELECTOR, "input:nth-child(6)")))
         elmt = WebDriverWait(self.driver, self.TIMEOUT).until(
             EC.presence_of_element_located((By.XPATH, '//input[@value="Ajouter"]')))
         elmt.click()
@@ -175,7 +166,7 @@ class Rhpy:
 
         # selection de population
         elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
-            (By.XPATH, '//input[@value="Appliquer"]')))  # (By.CSS_SELECTOR, "input:nth-child(5)")
+            (By.XPATH, '//input[@value="Appliquer"]')))
         elmt.click()
 
         # lecture du 1er contrat
@@ -249,7 +240,7 @@ class Rhpy:
 
         # selection de population
         elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
-            (By.XPATH, '//input[@value="Appliquer"]')))  # (By.CSS_SELECTOR, "input:nth-child(5)")
+            (By.XPATH, '//input[@value="Appliquer"]')))
         elmt.click()
 
         # ajout planning du manager

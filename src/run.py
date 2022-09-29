@@ -1,9 +1,14 @@
+import json
 from datetime import datetime
 
 from rhpy import Rhpy
 
-username = 'pdechastellier'
-password = 'vobziN-piqbyx-2bobfy'
+conf_file = './config.json'
+with open(conf_file, 'r') as f:
+    conf = json.load(f)
+    username = conf['username']
+    password = conf['password']
+
 
 rhpy = Rhpy(username, password, headless=False)
 rhpy.login()
