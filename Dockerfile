@@ -1,6 +1,6 @@
 FROM python:3.11.0rc2-slim
 
-## wget not included in slim image
+## required packages not included in slim image
 RUN apt-get -y update
 RUN apt-get -y install wget gnupg
 
@@ -18,7 +18,7 @@ RUN unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/
 ENV DISPLAY=:99
 
 COPY requirements.txt /wd/
-COPY src/  /wd/src/
+COPY src/ /wd/src/
 WORKDIR /wd
 
 RUN pip install --no-cache-dir -r /wd/requirements.txt --upgrade

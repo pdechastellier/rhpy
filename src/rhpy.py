@@ -223,7 +223,9 @@ class Rhpy:
             row.find_element(By.XPATH, './/input').click()
 
         # validation
-        btn.click()
+        btn = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
+            (By.XPATH, '//input[@value="Traiter"]')))
+        btn.click()g
         alert = self.driver.switch_to.alert
         alert.accept()
         return len(rows)
