@@ -11,6 +11,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
+
 class Rhpy:
     def __init__(self, username, password, headless=True):
         self.username = username
@@ -29,11 +30,13 @@ class Rhpy:
         options.add_argument('no-sandbox')
         options.add_argument("--disable-dev-shm-usage")
         options.headless = headless
-        # TODO: disable imgs to save the planet
-        # chrome_prefs = dict()
-        # chrome_prefs["profile.default_content_settings"] = {"images": 2}
-        # chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
-        # options.experimental_options["prefs"] = chrome_prefs
+
+        # disable imgs to save bandwidth
+        chrome_prefs = dict()
+        chrome_prefs["profile.default_content_settings"] = {"images": 2}
+        chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
+        options.experimental_options["prefs"] = chrome_prefs
+
         self.driver = webdriver.Chrome(options=options)
 
     def _check_vpn(self, url):
@@ -84,23 +87,32 @@ class Rhpy:
         elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located((By.ID, "user_closed")))
         elmt.click()
         self.driver.find_element(By.LINK_TEXT, link_text).click()
-        # TODO: verify role is ok
+
+        # verify role is ok
         elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
             (By.XPATH, '//*[@id="entete"]/div[2]/div[3]/div[2]/div[1]/span[2]')))
-        if (elmt.text == 'Salarié' and role == 'employee') or  (elmt.text == 'Responsable' and role == 'manager'):
+        if (elmt.text == 'Salarié' and role == 'employee') or (elmt.text == 'Responsable' and role == 'manager'):
             self._role = role
         else:
             raise ValueError("cannot change profile")
+
+    def _goto_menu(self, tree):
+        if len(tree) != 3:
+            raise ValueError('need exactly 3 levels', tree)
+
+        # navigate top left menu using 3 element ID
+        WebDriverWait(self.driver, self.TIMEOUT).until(
+            EC.presence_of_element_located((By.ID, tree[0]))).click()
+        WebDriverWait(self.driver, self.TIMEOUT).until(
+            EC.element_to_be_clickable((By.ID, tree[1]))).click()
+        WebDriverWait(self.driver, self.TIMEOUT).until(
+            EC.element_to_be_clickable((By.ID, tree[2]))).click()
 
     def submit(self, type, start, end):
         self.role = 'employee'
 
         # poser des conges - ouverture du menu
-        elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located((By.ID, "menuAfficher")))
-        elmt.click()
-        WebDriverWait(self.driver, self.TIMEOUT).until(EC.element_to_be_clickable((By.ID, "e_ACT_COLL_CEGID"))).click()
-        WebDriverWait(self.driver, self.TIMEOUT).until(
-            EC.element_to_be_clickable((By.ID, "ACT_COLL_CEGID_WAB010RB_RSP"))).click()
+        self._goto_menu(("menuAfficher", "e_ACT_COLL_CEGID", "ACT_COLL_CEGID_WAB010RB_RSP"))
 
         # selection de population
         elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
@@ -131,15 +143,16 @@ class Rhpy:
         self.driver.find_element(By.ID, "dtdeb").send_keys(start.strftime("%d/%m/%Y"))  # "29/03/2022"
         self.driver.find_element(By.ID, "dtfin").send_keys(end.strftime("%d/%m/%Y"))  # "29/03/2022"
         self.driver.find_element(By.XPATH,
-                                 '//input[@value="Continuer"]').click()  # By.CSS_SELECTOR, "div > input:nth-child(3)"
+                                 '//input[@value="Continuer"]').click()
 
         # enregistrement final
+        # TODO: wait less if chevauchement
         try:
             elmt = WebDriverWait(self.driver, self.TIMEOUT).until(
                 EC.presence_of_element_located((By.ID, "button_attacher"))).click()
             alert = self.driver.switch_to.alert
             if alert.text in (
-            'Merci de vérifier que vous avez bien respecté le nombre de jours maximum à poser sur la semaine.',
+                    'Merci de vérifier que vous avez bien respecté le nombre de jours maximum à poser sur la semaine.',
             ):
                 # alert.accept()
                 pass
@@ -158,47 +171,63 @@ class Rhpy:
         self.role = 'employee'
 
         # ouverture du menu - recapitulatif soldes
-        elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located((By.ID, "menuAfficher")))
-        elmt.click()
-        WebDriverWait(self.driver, self.TIMEOUT).until(EC.element_to_be_clickable((By.ID, "e_ACT_COLL_CEGID"))).click()
-        WebDriverWait(self.driver, self.TIMEOUT).until(
-            EC.element_to_be_clickable((By.ID, "ACT_COLL_CEGID_WAB050RB"))).click()
+        self._goto_menu(("menuAfficher", "e_ACT_COLL_CEGID", "ACT_COLL_CEGID_WAB050RB"))
 
         # selection de population
         elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
             (By.XPATH, '//input[@value="Appliquer"]')))
         elmt.click()
 
-        # lecture du 1er contrat
-        elmt = WebDriverWait(self.driver, self.TIMEOUT).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "tbody > tr.ligne_impaire > td:nth-child(6) > span")))
-        balance = dict()
-        balance['cp'] = float(elmt.text.replace(',', '.'))
-        elmt = self.driver.find_element(By.CSS_SELECTOR, "tbody > tr.ligne_impaire > td:nth-child(8) > span")
-        balance['jr'] = float(elmt.text.replace(',', '.'))
+        # selection du 1er contrat
+        # FIXME: need to go to details and calculate (ACQUIS - PRIS). add periode + periode suivante.
+        WebDriverWait(self.driver, self.TIMEOUT).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "tbody > tr.ligne_impaire > td:nth-child(1)"))).click()
 
+        # lecture du tableau periode en cours et suivance
+        table = WebDriverWait(self.driver, self.TIMEOUT).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="contenu"]/table/tbody/tr/td[1]/fieldset/table')))
+        balance = self._process_balance_table(table)
+
+        table_next = WebDriverWait(self.driver, self.TIMEOUT).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="contenu"]/table/tbody/tr/td[2]/fieldset/table')))
+        balance_next = self._process_balance_table(table_next)
+
+        for type, bal in balance_next.items():
+            if type in balance:
+                balance[type] = balance[type] + bal
+                # YAGNI what if type exists in next period but not in current period
+
+        return balance
+
+    def _process_balance_table(self, table):
+        balance = dict()
+        for row in table.find_elements(By.XPATH, './/tr[@class="ligne_impaire" or @class="ligne_paire"]'):
+            type = row.find_element(By.XPATH, './/td[1]').text
+            acquired = float(row.find_element(By.XPATH, './/td[2]').text.replace(',', '.'))
+            taken = float(row.find_element(By.XPATH, './/td[4]').text.replace(',', '.'))
+
+            if acquired == 0 and taken == 0:
+                continue
+            balance[self._clean_type(type)] = acquired - taken
         return balance
 
     def validate(self):
         self.role = 'manager'
 
         # ouverture du menu - traiter les demandes d'absences
-        elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located((By.ID, "menuAfficher")))
-        elmt.click()
-        WebDriverWait(self.driver, self.TIMEOUT).until(EC.element_to_be_clickable((By.ID, "e_ACTIVITE_MAN"))).click()
-        WebDriverWait(self.driver, self.TIMEOUT).until(
-            EC.element_to_be_clickable((By.ID, "ACTIVITE_MAN_WAB024RB"))).click()
-
+        self._goto_menu(("menuAfficher", "e_ACTIVITE_MAN", "ACTIVITE_MAN_WAB024RB"))
 
         # selection des demandes
         remaining = -1
         while remaining != 0:
             try:
-                # TODO: wait less longer if nothing to validate.
+                # TODO: wait less if nothing to validate
+                #  https://stackoverflow.com/questions/36579812/is-it-possible-to-have-a-fluentwait-wait-for-two-conditions
+
                 btn = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
                     (By.XPATH, '//input[@value="Traiter"]')))
                 rows = self.driver.find_elements(By.XPATH,
-                             '//*[@id="traitement"]/div/table/tbody/tr[@class="ligne_impaire" or @class="ligne_paire"]')
+                                                 '//*[@id="traitement"]/div/table/tbody/tr[@class="ligne_impaire" or @class="ligne_paire"]')
                 remaining = len(rows)
                 if remaining == 0:
                     return None
@@ -230,15 +259,17 @@ class Rhpy:
         alert.accept()
         return len(rows)
 
-    def team_planning(self):
-        self.role = 'manager'
+    def my_planning(self):
+        return self.team_planning(role='employee')
+
+    def team_planning(self, role='manager'):
+        self.role = role
 
         # ouverture du menu - planning des absences
-        elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located((By.ID, "menuAfficher")))
-        elmt.click()
-        WebDriverWait(self.driver, self.TIMEOUT).until(EC.element_to_be_clickable((By.ID, "e_ACTIVITE_MAN"))).click()
-        WebDriverWait(self.driver, self.TIMEOUT).until(
-            EC.element_to_be_clickable((By.ID, "ACTIVITE_MAN_WPL010RB"))).click()
+        if role == 'manager':
+            self._goto_menu(("menuAfficher", "e_ACTIVITE_MAN", "ACTIVITE_MAN_WPL010RB"))
+        else:
+            self._goto_menu(("menuAfficher", "e_ACT_COLL_CEGID", "ACT_COLL_CEGID_WPL010RB"))
 
         # selection de population
         elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
@@ -246,10 +277,11 @@ class Rhpy:
         elmt.click()
 
         # ajout planning du manager
-        elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
-            (By.XPATH, '//input[@value="Rechercher"]')))
-        self.driver.find_element(By.NAME, "aff_manager").click()
-        elmt.click()
+        if role == 'manager':
+            elmt = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
+                (By.XPATH, '//input[@value="Rechercher"]')))
+            self.driver.find_element(By.NAME, "aff_manager").click()
+            elmt.click()
 
         # lecture des utilisateurs
         WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
@@ -266,11 +298,13 @@ class Rhpy:
                 periods.add(self._parse_planning_str(names[row_nb], col.get_attribute('title')))
             row_nb += 1
 
-        return(periods)
+        return (periods)
 
     @staticmethod
     def _clean_type(str):
         if 'Congés payés' in str:
+            return 'cp'
+        elif 'Congés Payés' in str:
             return 'cp'
         elif 'Télétravail' in str:
             return 'tt'

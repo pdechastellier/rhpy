@@ -18,4 +18,6 @@ rhpy.login()
 #print(rhpy.balance())
 #rhpy.team_status(as_of=datetime.strptime('09/09/2022', '%d/%m/%Y'))
 
-rhpy.balance()
+#print(rhpy.team_planning())
+#print(rhpy.my_planning())
+print(rhpy.balance())

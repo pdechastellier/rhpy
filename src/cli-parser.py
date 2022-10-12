@@ -3,6 +3,9 @@ import json
 import os
 from rhpy import Rhpy
 
+# TODO: annule 'tt' si pose de conges sur meme periode
+# TODO: poser 'tt' sur le mois entier, a partir des derniers 'tt' posés
+
 conf_file = './config.json'
 
 prog = os.path.basename(sys.argv[0])
