@@ -108,7 +108,8 @@ class Rhpy:
         WebDriverWait(self.driver, self.TIMEOUT).until(
             EC.element_to_be_clickable((By.ID, tree[2]))).click()
 
-    def submit(self, type, start, end):
+    def submit(self, type, start, end, dry_run=False):
+        # TODO: annule 'tt' si pose de conges sur meme periode
         self.role = 'employee'
 
         # poser des conges - ouverture du menu
@@ -146,6 +147,8 @@ class Rhpy:
                                  '//input[@value="Continuer"]').click()
 
         # enregistrement final
+        if dry_run:
+            return
         # TODO: wait less if chevauchement
         try:
             elmt = WebDriverWait(self.driver, self.TIMEOUT).until(
@@ -154,10 +157,9 @@ class Rhpy:
             if alert.text in (
                     'Merci de vérifier que vous avez bien respecté le nombre de jours maximum à poser sur la semaine.',
             ):
-                # alert.accept()
-                pass
+                alert.accept()
             else:
-                # alert.accept()
+                alert.accept()
                 raise ValueError(alert.text)
         except TimeoutException:
             # Erreur type "Chevauchement avec un événement de même nature"
@@ -179,7 +181,6 @@ class Rhpy:
         elmt.click()
 
         # selection du 1er contrat
-        # FIXME: need to go to details and calculate (ACQUIS - PRIS). add periode + periode suivante.
         WebDriverWait(self.driver, self.TIMEOUT).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "tbody > tr.ligne_impaire > td:nth-child(1)"))).click()
 
@@ -260,6 +261,7 @@ class Rhpy:
         return len(rows)
 
     def my_planning(self):
+        # TODO: get more than 4 weeks for submit_recurring_tt()
         return self.team_planning(role='employee')
 
     def team_planning(self, role='manager'):
@@ -363,3 +365,22 @@ class Rhpy:
                 print(f'{surname} will be off soon on {period[2].strftime("%a %d %b")} for {duration} days')
             else:
                 pass
+
+    def submit_recurring_tt(self, until=datetime.today() + timedelta(days=60)):
+        """set monday and tuesday at homeoffice each week
+        from the first week without homeoffice already submitted
+        for the next 60 days or until the optional date parameter"""
+        # check existing tt - no more than 3 weeks in the future
+        leaves = self.my_planning()
+        cursor = datetime.today()
+        for leave in leaves:
+            if leave[1] != 'tt':
+                continue
+            cursor = max(cursor, leave[3])
+        cursor = cursor + timedelta(days=(7 - cursor.weekday()) % 7) # move to the following monday
+        print(f'pos cursor at {cursor.strftime("%a %d %b")}')
+        while cursor < until:
+            cursor = cursor + timedelta(days=7)
+            print(f'added homeoffice for week of {cursor.strftime("%a %d %b")} ')
+            self.submit('tt', cursor, cursor + timedelta(days=1))
+

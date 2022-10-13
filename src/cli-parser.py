@@ -3,8 +3,6 @@ import json
 import os
 from rhpy import Rhpy
 
-# TODO: annule 'tt' si pose de conges sur meme periode
-# TODO: poser 'tt' sur le mois entier, a partir des derniers 'tt' posés
 
 conf_file = './config.json'
 
@@ -12,7 +10,7 @@ prog = os.path.basename(sys.argv[0])
 try:
     action = sys.argv[1]
 except IndexError:
-    print(f"usage: {prog} <login|add|balance|status|validate>")
+    print(f"usage: {prog} <login|add|balance|status|validate|tt>")
     exit(1)
 
 
@@ -72,6 +70,11 @@ if action == 'status':
     rhpy.login()
     rhpy.team_status()
     exit(0)
+
+if action == 'tt':
+    rhpy = Rhpy(username, password)
+    rhpy.login()
+    rhpy.submit_recurring_tt()
 
 print("unknown action")
 exit(1)
