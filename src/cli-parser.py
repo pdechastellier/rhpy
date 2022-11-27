@@ -1,3 +1,4 @@
+import datetime
 import sys
 import json
 import os
@@ -44,13 +45,24 @@ except Exception:
 
 
 if action == 'add':
+    """submit a new vacation request
+    params:
+        type: off, cp, ho, jr
+        start: start date as dd/mm/yy (ex: 13/10/22 for Nov 13th, 2022)
+        end: end date as dd/mm/yy
+    """
+    if len(sys.argv) != 5:
+        print(f"usage: {prog} add <type> <start> <end>")
+        exit(1)
     type = sys.argv[2]
-    if type not in ['off', 'cp', 'ho', 'jr']:
+    if type not in ['cp', 'ho', 'jr']:
         raise ValueError(f"unknown type {type}")
+    start = datetime.datetime.strptime(sys.argv[3], '%d/%m/%y')
+    end = datetime.datetime.strptime(sys.argv[4], '%d/%m/%y')
     rhpy = Rhpy(username, password)
     rhpy.login()
-    # TODO
-    pass
+    rhpy.submit(type, start, end)
+    exit(0)
 
 if action == 'balance':
     rhpy = Rhpy(username, password)
@@ -75,6 +87,7 @@ if action == 'tt':
     rhpy = Rhpy(username, password)
     rhpy.login()
     rhpy.submit_recurring_tt()
+    exit(0)
 
 print("unknown action")
 exit(1)

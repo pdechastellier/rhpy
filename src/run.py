@@ -1,5 +1,5 @@
+import datetime
 import json
-from datetime import datetime
 
 from rhpy import Rhpy
 
@@ -10,14 +10,15 @@ with open(conf_file, 'r') as f:
     password = conf['password']
 
 
-rhpy = Rhpy(username, password, headless=False)
+rhpy = Rhpy(username, password, headless=True)
 rhpy.login()
-# rhpy.submit('tt', datetime.datetime.strptime('01/10/2022', '%d/%m/%Y'),
-#            datetime.datetime.strptime('02/10/2022', '%d/%m/%Y'))
+# rhpy.submit('cp', datetime.datetime.strptime('28/10/2022', '%d/%m/%Y'),
+#             datetime.datetime.strptime('31/10/2022', '%d/%m/%Y'))
 
-#print(rhpy.balance())
+print("Balance", rhpy.balance())
 #rhpy.team_status(as_of=datetime.strptime('09/09/2022', '%d/%m/%Y'))
 
 #print(rhpy.team_planning())
 #print(rhpy.my_planning())
-print(rhpy.balance())
+rhpy.validate()
+rhpy.team_status()

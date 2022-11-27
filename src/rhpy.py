@@ -39,15 +39,16 @@ class Rhpy:
 
         self.driver = webdriver.Chrome(options=options)
 
-    def _check_vpn(self, url):
-        myssl = ssl.create_default_context();
+    @staticmethod
+    def _check_vpn(url):
+        myssl = ssl.create_default_context()
         myssl.check_hostname = False
         myssl.verify_mode = ssl.CERT_NONE
         try:
             r = urllib.request.urlopen(url, timeout=3, context=myssl).read()
         except urllib.error.URLError:
             return False
-        return r != None
+        return r is not None
 
     def login(self):
         # ## Login page and credentials
@@ -97,6 +98,7 @@ class Rhpy:
             raise ValueError("cannot change profile")
 
     def _goto_menu(self, tree):
+        # FIXME: blocked sometimes
         if len(tree) != 3:
             raise ValueError('need exactly 3 levels', tree)
 
@@ -151,7 +153,7 @@ class Rhpy:
             return
         # TODO: wait less if chevauchement
         try:
-            elmt = WebDriverWait(self.driver, self.TIMEOUT).until(
+            WebDriverWait(self.driver, self.TIMEOUT).until(
                 EC.presence_of_element_located((By.ID, "button_attacher"))).click()
             alert = self.driver.switch_to.alert
             if alert.text in (
@@ -163,6 +165,8 @@ class Rhpy:
                 raise ValueError(alert.text)
         except TimeoutException:
             # Erreur type "Chevauchement avec un événement de même nature"
+            # "Chevauchement avec la demande de Télétravail du 13/10/2022 au 18/10/2022"
+            # "Durée de l'absence est égale à 0"
             elmt = WebDriverWait(self.driver, self.TIMEOUT).until(
                 EC.presence_of_element_located((By.ID, "div_errors")))
             msg = elmt.text.replace('Fermer', '').strip()
@@ -213,6 +217,7 @@ class Rhpy:
         return balance
 
     def validate(self):
+        # TODO: traiter les demandes d'annulation d'absences (2eme onglet)
         self.role = 'manager'
 
         # ouverture du menu - traiter les demandes d'absences
@@ -225,10 +230,10 @@ class Rhpy:
                 # TODO: wait less if nothing to validate
                 #  https://stackoverflow.com/questions/36579812/is-it-possible-to-have-a-fluentwait-wait-for-two-conditions
 
-                btn = WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
+                WebDriverWait(self.driver, self.TIMEOUT).until(EC.presence_of_element_located(
                     (By.XPATH, '//input[@value="Traiter"]')))
                 rows = self.driver.find_elements(By.XPATH,
-                                                 '//*[@id="traitement"]/div/table/tbody/tr[@class="ligne_impaire" or @class="ligne_paire"]')
+                           '//*[@id="traitement"]/div/table/tbody/tr[@class="ligne_impaire" or @class="ligne_paire"]')
                 remaining = len(rows)
                 if remaining == 0:
                     return None
@@ -248,8 +253,9 @@ class Rhpy:
             type = self._clean_type(row.find_element(By.XPATH, './td[6]').text)
             start = datetime.strptime(row.find_element(By.XPATH, './td[7]').text, '%d/%m/%Y')
             end = datetime.strptime(row.find_element(By.XPATH, './td[9]').text, '%d/%m/%Y')
-            duration = (end - start).days + 1
-            print(f'{surname} on {type} for {duration} days starting on {start.strftime("%a %d %b")}')
+            if type != 'tt':
+                duration = (end - start).days + 1
+                print(f'{surname}: {type} validated for {duration} day{"s" if duration > 1 else ""} starting on {start.strftime("%a %d %b")}')
             row.find_element(By.XPATH, './/input').click()
 
         # validation
@@ -300,7 +306,7 @@ class Rhpy:
                 periods.add(self._parse_planning_str(names[row_nb], col.get_attribute('title')))
             row_nb += 1
 
-        return (periods)
+        return periods
 
     @staticmethod
     def _clean_type(str):
@@ -327,8 +333,8 @@ class Rhpy:
 
         type = Rhpy._clean_type(str)
 
-        patternp = re.compile(r'.* du (\d{2}\/\d{2}\/\d{4}) au (\d{2}\/\d{2}\/\d{4})$')
-        patternj = re.compile(r'.* le (\d{2}\/\d{2}\/\d{4})$')
+        patternp = re.compile(r'.* du (\d{2}/\d{2}/\d{4}) au (\d{2}/\d{2}/\d{4})$')
+        patternj = re.compile(r'.* le (\d{2}/\d{2}/\d{4})$')
         m = patternp.match(str)
         if m is not None:
             return (username, type,
@@ -344,8 +350,8 @@ class Rhpy:
     @staticmethod
     def _clean_name(str):
         # 'DOE John'          -> ('DOE', 'John')
-        str = re.sub(' \([0-9]+\)', '', str)
-        return re.match('(^[A-Z ]+) (.*)$', str).groups()
+        str = re.sub(r' \([0-9]+\)', '', str)
+        return re.match(r'(^[A-Z ]+) (.*)$', str).groups()
 
     def team_status(self, as_of=datetime.today()):
         planning = self.team_planning()
@@ -360,11 +366,12 @@ class Rhpy:
             if period[2] <= as_of and period[3] >= datetime.today():
                 print(f'{surname} is off today until {period[3].strftime("%a %d %b")}')
             elif period[2] - as_of <= timedelta(days=2):
-                print(f'{surname} is off tomorrow for {duration} days')
+                print(f'{surname} is off tomorrow for {duration} day{"s" if duration > 1 else ""}')
             elif period[2] - as_of <= timedelta(days=10) and duration >= 5:
                 print(f'{surname} will be off soon on {period[2].strftime("%a %d %b")} for {duration} days')
             else:
                 pass
+        # TODO: print something if all is clean
 
     def submit_recurring_tt(self, until=datetime.today() + timedelta(days=60)):
         """set monday and tuesday at homeoffice each week
@@ -377,10 +384,13 @@ class Rhpy:
             if leave[1] != 'tt':
                 continue
             cursor = max(cursor, leave[3])
-        cursor = cursor + timedelta(days=(7 - cursor.weekday()) % 7) # move to the following monday
+        cursor = cursor + timedelta(days=(7 - cursor.weekday()) % 7)  # move to the following monday
         print(f'pos cursor at {cursor.strftime("%a %d %b")}')
         while cursor < until:
             cursor = cursor + timedelta(days=7)
             print(f'added homeoffice for week of {cursor.strftime("%a %d %b")} ')
             self.submit('tt', cursor, cursor + timedelta(days=1))
 
+    def submit_travel_receipt(self):
+        # TODO: https://www.tutorialspoint.com/how-to-upload-file-with-selenium-python#
+        pass
